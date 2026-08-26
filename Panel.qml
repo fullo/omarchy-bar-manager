@@ -37,6 +37,30 @@ Panel {
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
 
+  FileView {
+    id: shellFileView
+    path: root.configDir + "/shell.json"
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      try {
+        var config = JSON.parse(text())
+        root.currentConfig = JSON.parse(JSON.stringify(config))
+        root.originalConfig = JSON.parse(JSON.stringify(config))
+        root.errorText = ""
+        root.loaded = true
+        checkChanges()
+      } catch(e) {
+        root.errorText = "Failed to parse shell.json: " + e.message
+        root.loaded = false
+      }
+    }
+    onLoadFailed: {
+      root.errorText = "Failed to read shell.json"
+      root.loaded = false
+    }
+  }
+
   function open() {
     root.controller.show()
     loadConfig()
@@ -64,29 +88,7 @@ Panel {
   }
 
   function loadConfig() {
-    var xhr = new XMLHttpRequest()
-    xhr.open("GET", "file://" + root.configDir + "/shell.json")
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4) {
-        if (xhr.status === 200 || xhr.status === 0) {
-          try {
-            var config = JSON.parse(xhr.responseText)
-            root.currentConfig = JSON.parse(JSON.stringify(config))
-            root.originalConfig = JSON.parse(JSON.stringify(config))
-            root.errorText = ""
-            root.loaded = true
-            checkChanges()
-          } catch(e) {
-            root.errorText = "Failed to parse shell.json: " + e.message
-            root.loaded = false
-          }
-        } else {
-          root.errorText = "Failed to read shell.json: HTTP " + xhr.status
-          root.loaded = false
-        }
-      }
-    }
-    xhr.send()
+    shellFileView.reload()
   }
 
   function checkChanges() {
