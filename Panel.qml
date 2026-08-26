@@ -136,7 +136,8 @@ Panel {
   }
 
   function doSave() {
-    if (!currentConfig) return
+    if (!currentConfig) { console.warn("bar-manager: doSave: no currentConfig"); return }
+    console.log("bar-manager: doSave called, bar:", !!root.bar, "shell:", !!(root.bar && root.bar.shell), "mutateShellConfig:", typeof (root.bar && root.bar.shell && root.bar.shell.mutateShellConfig))
     // Write via shell.mutateShellConfig if available, else direct file write
     if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
       var configCopy = JSON.parse(JSON.stringify(currentConfig))
@@ -149,7 +150,26 @@ Panel {
       diff = []
       errorText = ""
     } else {
-      errorText = "Cannot save — shell.mutateShellConfig not available"
+      console.warn("bar-manager: doSave: mutateShellConfig not available, writing file directly")
+      // Direct file write fallback
+      var json = JSON.stringify(currentConfig, null, 2) + "\n"
+      var xhr = new XMLHttpRequest()
+      xhr.open("PUT", "file://" + root.configDir + "/shell.json")
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+          if (xhr.status === 200 || xhr.status === 0) {
+            console.log("bar-manager: doSave: file write succeeded")
+            root.originalConfig = JSON.parse(JSON.stringify(currentConfig))
+            hasChanges = false
+            diff = []
+            errorText = ""
+          } else {
+            console.warn("bar-manager: doSave: file write failed:", xhr.status)
+            errorText = "Failed to write shell.json: HTTP " + xhr.status
+          }
+        }
+      }
+      xhr.send(json)
     }
   }
 
@@ -325,6 +345,24 @@ Panel {
     focusTarget: keyCatcher
     contentWidth: panel.fittedContentWidth(Style.space(500))
     contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight)
+
+    ConfirmDialog {
+      id: saveConfirmDialog
+      anchors.fill: parent
+      z: 10
+      message: "Save changes to bar layout? The shell will restart."
+      confirmText: "Save"
+      cancelText: "Cancel"
+      onConfirmed: {
+        console.log("bar-manager: ConfirmDialog confirmed")
+        saveConfirmDialog.opened = false
+        root.doSave()
+      }
+      onCanceled: {
+        console.log("bar-manager: ConfirmDialog canceled")
+        saveConfirmDialog.opened = false
+      }
+    }
 
     PanelKeyCatcher {
       id: keyCatcher
@@ -1033,18 +1071,5 @@ Panel {
         }
       }
     }
-  }
-
-  ConfirmDialog {
-    id: saveConfirmDialog
-    anchors.fill: parent
-    message: "Save changes to bar layout? The shell will restart."
-    confirmText: "Save"
-    cancelText: "Cancel"
-    onConfirmed: {
-      saveConfirmDialog.opened = false
-      root.doSave()
-    }
-    onCanceled: saveConfirmDialog.opened = false
   }
 }
