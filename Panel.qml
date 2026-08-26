@@ -131,7 +131,12 @@ Panel {
       errorText = "Validation failed:\n" + validation.errors.join("\n")
       return
     }
-    // Ask user confirmation
+    // Show confirmation dialog
+    saveConfirmDialog.opened = true
+  }
+
+  function doSave() {
+    if (!currentConfig) return
     // Write via shell.mutateShellConfig if available, else direct file write
     if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
       var configCopy = JSON.parse(JSON.stringify(currentConfig))
@@ -974,5 +979,18 @@ Panel {
         }
       }
     }
+  }
+
+  ConfirmDialog {
+    id: saveConfirmDialog
+    anchors.fill: parent
+    message: "Save changes to bar layout? The shell will restart."
+    confirmText: "Save"
+    cancelText: "Cancel"
+    onConfirmed: {
+      saveConfirmDialog.opened = false
+      root.doSave()
+    }
+    onCanceled: saveConfirmDialog.opened = false
   }
 }
