@@ -833,7 +833,7 @@ Panel {
                     }
 
                     Text {
-                      width: parent.width - Style.space(6) - Style.space(80)
+                      width: parent.width - Style.space(6) - Style.space(140)
                       text: root.pluginDisplayName(pluginId)
                       color: root.contentForeground
                       font.family: root.contentFontFamily
@@ -1083,17 +1083,14 @@ Panel {
             }
 
             Repeater {
-              model: root.installedPlugins
+              model: root.pluginsNotInLayout()
 
               Rectangle {
-                required property var modelData
-                required property int index
+                required property string modelData
                 width: parent.width
                 height: addRow.implicitHeight + Style.space(10)
                 radius: Style.cornerRadius
                 color: addMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
-
-                property bool isInLayout: root.isPluginInLayout(modelData.id)
 
                 Row {
                   id: addRow
@@ -1105,7 +1102,7 @@ Panel {
                   spacing: Style.space(6)
 
                   Text {
-                    text: root.pluginIcon(modelData.id)
+                    text: root.pluginIcon(modelData)
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.body
@@ -1114,7 +1111,7 @@ Panel {
 
                   Text {
                     width: parent.width - Style.space(6) - Style.space(80)
-                    text: modelData.name || modelData.id
+                    text: root.pluginDisplayName(modelData)
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.body
@@ -1125,16 +1122,14 @@ Panel {
                     width: addBtnLabel.implicitWidth + Style.space(16)
                     height: Style.space(24)
                     radius: Style.cornerRadius
-                    color: addRow.isInLayout ? "transparent" : Color.accent
-                    border.width: addRow.isInLayout ? 1 : 0
-                    border.color: Qt.darker(root.contentForeground, 1.4)
+                    color: Color.accent
                     anchors.verticalCenter: parent.verticalCenter
 
                     Text {
                       id: addBtnLabel
                       anchors.centerIn: parent
-                      text: addRow.isInLayout ? "✓ In bar" : "+ Add"
-                      color: addRow.isInLayout ? Qt.darker(root.contentForeground, 1.4) : "white"
+                      text: "+ Add"
+                      color: "white"
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
                       font.bold: true
@@ -1146,12 +1141,21 @@ Panel {
                   id: addMouse
                   anchors.fill: parent
                   hoverEnabled: true
-                  cursorShape: addRow.isInLayout ? Qt.ArrowCursor : Qt.PointingHandCursor
-                  onClicked: {
-                    if (!addRow.isInLayout) root.addPlugin(modelData.id, root.addTargetSection)
-                  }
+                  cursorShape: Qt.PointingHandCursor
+                  onClicked: root.addPlugin(modelData, root.addTargetSection)
                 }
               }
+            }
+
+            Text {
+              visible: root.pluginsNotInLayout().length === 0
+              width: parent.width
+              text: "All enabled plugins are already in the layout"
+              color: Qt.darker(root.contentForeground, 1.5)
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.bodySmall
+              font.italic: true
+              horizontalAlignment: Text.AlignHCenter
             }
           }
 
