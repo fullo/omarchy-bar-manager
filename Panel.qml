@@ -364,6 +364,154 @@ Panel {
       }
     }
 
+    // Settings editor overlay
+    Rectangle {
+      id: settingsEditor
+      anchors.fill: parent
+      z: 9
+      visible: root.editingPluginId !== ""
+      color: Color.background
+
+      property var pluginSettings: root.editingPluginSettings
+      property var settingsKeys: Object.keys(pluginSettings)
+
+      Column {
+        anchors.fill: parent
+        anchors.margins: Style.space(16)
+        spacing: Style.space(10)
+
+        // Header
+        Row {
+          width: parent.width
+          spacing: Style.space(8)
+
+          Text {
+            text: "←"
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.body
+            anchors.verticalCenter: parent.verticalCenter
+
+            MouseArea {
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                root.editingPluginId = ""
+                root.editingPluginSection = ""
+                root.editingPluginSettings = ({})
+              }
+            }
+          }
+
+          Text {
+            text: root.pluginDisplayName(root.editingPluginId) + " Settings"
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.title
+            font.bold: true
+            anchors.verticalCenter: parent.verticalCenter
+          }
+        }
+
+        Rectangle {
+          width: parent.width
+          height: 1
+          color: Qt.darker(root.contentForeground, 1.3)
+        }
+
+        // Settings fields
+        Flickable {
+          width: parent.width
+          height: parent.height - Style.space(80)
+          contentHeight: settingsColumn.implicitHeight
+          clip: true
+          boundsBehavior: Flickable.StopAtBounds
+
+          Column {
+            id: settingsColumn
+            width: parent.width
+            spacing: Style.space(8)
+
+            Repeater {
+              model: settingsEditor.settingsKeys
+
+              Column {
+                required property string modelData
+                required property int index
+                width: parent.width
+                spacing: Style.space(2)
+
+                Text {
+                  text: modelData
+                  color: Qt.darker(root.contentForeground, 1.4)
+                  font.family: root.contentFontFamily
+                  font.pixelSize: Style.font.caption
+                }
+
+                Rectangle {
+                  width: parent.width
+                  height: Style.space(32)
+                  radius: Style.cornerRadius
+                  color: "transparent"
+                  border.width: 1
+                  border.color: Qt.darker(root.contentForeground, 1.3)
+
+                  TextInput {
+                    id: settingsInput
+                    anchors.fill: parent
+                    anchors.margins: Style.space(6)
+                    color: root.contentForeground
+                    font.family: root.contentFontFamily
+                    font.pixelSize: Style.font.body
+                    clip: true
+                    verticalAlignment: TextInput.AlignVCenter
+                    text: String(settingsEditor.pluginSettings[modelData] || "")
+
+                    onTextChanged: {
+                      // Update the settings value
+                      var newSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
+                      newSettings[modelData] = text
+                      root.editingPluginSettings = newSettings
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Back button
+        Rectangle {
+          width: parent.width
+          height: Style.space(32)
+          radius: Style.cornerRadius
+          color: "transparent"
+          border.width: 1
+          border.color: Qt.darker(root.contentForeground, 1.3)
+
+          Text {
+            anchors.centerIn: parent
+            text: "Back"
+            color: root.contentForeground
+            font.family: root.contentFontFamily
+            font.pixelSize: Style.font.body
+          }
+
+          MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+              root.editingPluginId = ""
+              root.editingPluginSection = ""
+              root.editingPluginSettings = ({})
+            }
+          }
+        }
+      }
+    }
+
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
