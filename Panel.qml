@@ -557,9 +557,11 @@ Panel {
                   width: parent.width
                   height: pluginRow.implicitHeight + Style.space(10)
                   radius: Style.cornerRadius
-                  color: pluginMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
+                  color: rowHover.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
 
                   property string pluginId: Model.entryId(modelData)
+
+                  HoverHandler { id: rowHover }
 
                   Row {
                     id: pluginRow
@@ -749,12 +751,6 @@ Panel {
                         }
                       }
                     }
-                  }
-
-                  MouseArea {
-                    id: pluginMouse
-                    anchors.fill: parent
-                    hoverEnabled: true
                   }
                 }
               }
