@@ -30,6 +30,9 @@ Panel {
   property var editingPluginSettings: ({})
   property string addTargetSection: "center"
 
+  readonly property string home: Quickshell.env("HOME")
+  readonly property string configDir: home + "/.config/omarchy"
+
   // Styling
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
@@ -62,8 +65,7 @@ Panel {
 
   function loadConfig() {
     var xhr = new XMLHttpRequest()
-    var home = "/home/" + (Qt.getenv("USER") || "fullo")
-    xhr.open("GET", "file://" + home + "/.config/omarchy/shell.json")
+    xhr.open("GET", "file://" + root.configDir + "/shell.json")
     xhr.onreadystatechange = function() {
       if (xhr.readyState === 4) {
         if (xhr.status === 200 || xhr.status === 0) {
@@ -517,12 +519,12 @@ Panel {
 
             Column {
               required property string modelData
+              required property int index
               visible: root.activeTab === index
               width: parent.width
               spacing: Style.space(6)
 
               property string sectionName: modelData
-              property int sectionIndex: index
 
               Text {
                 text: sectionName.toUpperCase() + " SECTION"

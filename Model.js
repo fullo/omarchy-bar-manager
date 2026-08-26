@@ -1,29 +1,7 @@
 // Model.js — shell.json read/write/validate helpers for Bar Manager
 
-var CONFIG_URL = "file://" + Qt.resolvedUrl(".").replace("file://", "").replace(/\/[^\/]+$/, "/") + "../../shell.json"
-
-function readShellConfig(callback) {
-    var xhr = new XMLHttpRequest()
-    xhr.open("GET", shellConfigPath())
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-            if (xhr.status === 200 || xhr.status === 0) {
-                try {
-                    var config = JSON.parse(xhr.responseText)
-                    callback(config, null)
-                } catch(e) {
-                    callback(null, "JSON parse error: " + e.message)
-                }
-            } else {
-                callback(null, "Failed to read shell.json: HTTP " + xhr.status)
-            }
-        }
-    }
-    xhr.send()
-}
-
 function shellConfigPath() {
-    var home = Qt.getenv("HOME") || "/home/" + Qt.getenv("USER")
+    var home = Quickshell.env("HOME")
     return "file://" + home + "/.config/omarchy/shell.json"
 }
 
