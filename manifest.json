@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.fullo.omarchy-bar-manager",
+  "name": "Bar Manager",
+  "version": "1.0.0",
+  "author": "fullo",
+  "description": "Enable, disable, reorder, and configure bar plugins from a panel (no dependencies)",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Bar Manager",
+    "description": "Manage bar plugins — toggle, reorder, configure",
+    "category": "System",
+    "allowMultiple": false
+  }
+}
