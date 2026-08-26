@@ -255,6 +255,19 @@ Panel {
     return root.installedPlugins.map(function(p) { return p.id })
   }
 
+  function isPluginInLayout(pluginId) {
+    if (!currentConfig || !currentConfig.bar || !currentConfig.bar.layout) return false
+    var sections = ["left", "center", "right"]
+    for (var i = 0; i < sections.length; i++) {
+      var entries = currentConfig.bar.layout[sections[i]]
+      if (!Array.isArray(entries)) continue
+      for (var j = 0; j < entries.length; j++) {
+        if (Model.entryId(entries[j]) === pluginId) return true
+      }
+    }
+    return false
+  }
+
   function pluginsNotInLayout() {
     if (!currentConfig) return []
     var inLayout = Model.pluginsInLayout(currentConfig)
@@ -288,6 +301,21 @@ Panel {
       if (Model.entryId(entries[i]) === pluginId) {
         if (typeof entries[i] === "string") entries[i] = { id: pluginId }
         entries[i][key] = value
+        break
+      }
+    }
+    currentConfig = JSON.parse(JSON.stringify(currentConfig))
+    checkChanges()
+  }
+
+  function applyAllSettings(pluginId, section, settings) {
+    if (!currentConfig || !currentConfig.bar || !currentConfig.bar.layout) return
+    var entries = currentConfig.bar.layout[section]
+    if (!Array.isArray(entries)) return
+    for (var i = 0; i < entries.length; i++) {
+      if (Model.entryId(entries[i]) === pluginId) {
+        if (typeof entries[i] === "string") entries[i] = { id: pluginId }
+        for (var k in settings) entries[i][k] = settings[k]
         break
       }
     }
@@ -373,6 +401,7 @@ Panel {
       color: Color.background
 
       property var pluginSettings: root.editingPluginSettings
+      property var originalSettings: ({})
       property var settingsKeys: Object.keys(pluginSettings)
 
       Column {
@@ -481,31 +510,68 @@ Panel {
           }
         }
 
-        // Back button
-        Rectangle {
+        // Action buttons
+        Row {
           width: parent.width
-          height: Style.space(32)
-          radius: Style.cornerRadius
-          color: "transparent"
-          border.width: 1
-          border.color: Qt.darker(root.contentForeground, 1.3)
+          spacing: Style.space(6)
 
-          Text {
-            anchors.centerIn: parent
-            text: "Back"
-            color: root.contentForeground
-            font.family: root.contentFontFamily
-            font.pixelSize: Style.font.body
+          // Undo
+          Rectangle {
+            width: (parent.width - Style.space(6)) / 2
+            height: Style.space(32)
+            radius: Style.cornerRadius
+            color: undoMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
+            border.width: 1
+            border.color: Qt.darker(root.contentForeground, 1.3)
+
+            Text {
+              anchors.centerIn: parent
+              text: "Undo"
+              color: root.contentForeground
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.body
+            }
+
+            MouseArea {
+              id: undoMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                root.editingPluginSettings = JSON.parse(JSON.stringify(settingsEditor.originalSettings))
+              }
+            }
           }
 
-          MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-              root.editingPluginId = ""
-              root.editingPluginSection = ""
-              root.editingPluginSettings = ({})
+          // Save
+          Rectangle {
+            width: (parent.width - Style.space(6)) / 2
+            height: Style.space(32)
+            radius: Style.cornerRadius
+            color: saveSettingsMouse.containsMouse ? Qt.darker(Color.accent, 0.85) : Color.accent
+
+            Text {
+              anchors.centerIn: parent
+              text: "Save"
+              color: "white"
+              font.family: root.contentFontFamily
+              font.pixelSize: Style.font.body
+              font.bold: true
+            }
+
+            MouseArea {
+              id: saveSettingsMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: {
+                if (root.editingPluginId && root.editingPluginSection) {
+                  root.applyAllSettings(root.editingPluginId, root.editingPluginSection, root.editingPluginSettings)
+                }
+                root.editingPluginId = ""
+                root.editingPluginSection = ""
+                root.editingPluginSettings = ({})
+              }
             }
           }
         }
@@ -776,6 +842,64 @@ Panel {
                       elide: Text.ElideRight
                     }
 
+                    // Move left
+                    Rectangle {
+                      width: Style.space(20)
+                      height: Style.space(20)
+                      radius: Style.space(10)
+                      color: moveLeftMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
+                      anchors.verticalCenter: parent.verticalCenter
+                      visible: sectionName !== "left"
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: "←"
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                      MouseArea {
+                        id: moveLeftMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                          var sections = ["left", "center", "right"]
+                          var idx = sections.indexOf(sectionName)
+                          if (idx > 0) root.movePlugin(pluginId, sectionName, sections[idx - 1])
+                        }
+                      }
+                    }
+
+                    // Move right
+                    Rectangle {
+                      width: Style.space(20)
+                      height: Style.space(20)
+                      radius: Style.space(10)
+                      color: moveRightMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
+                      anchors.verticalCenter: parent.verticalCenter
+                      visible: sectionName !== "right"
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: "→"
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                      MouseArea {
+                        id: moveRightMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                          var sections = ["left", "center", "right"]
+                          var idx = sections.indexOf(sectionName)
+                          if (idx < 2) root.movePlugin(pluginId, sectionName, sections[idx + 1])
+                        }
+                      }
+                    }
+
                     // Move up
                     Rectangle {
                       width: Style.space(20)
@@ -851,6 +975,7 @@ Panel {
                           root.editingPluginId = pluginId
                           root.editingPluginSection = sectionName
                           root.editingPluginSettings = root.pluginSettings(pluginId, sectionName)
+                          settingsEditor.originalSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
                         }
                       }
                     }
@@ -879,64 +1004,6 @@ Panel {
                         onClicked: root.removePlugin(pluginId, sectionName)
                       }
                     }
-
-                    // Move left
-                    Rectangle {
-                      width: Style.space(20)
-                      height: Style.space(20)
-                      radius: Style.space(10)
-                      color: moveLeftMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
-                      anchors.verticalCenter: parent.verticalCenter
-                      visible: sectionName !== "left"
-
-                      Text {
-                        anchors.centerIn: parent
-                        text: "←"
-                        color: root.contentForeground
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.caption
-                      }
-                      MouseArea {
-                        id: moveLeftMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                          var sections = ["left", "center", "right"]
-                          var idx = sections.indexOf(sectionName)
-                          if (idx > 0) root.movePlugin(pluginId, sectionName, sections[idx - 1])
-                        }
-                      }
-                    }
-
-                    // Move right
-                    Rectangle {
-                      width: Style.space(20)
-                      height: Style.space(20)
-                      radius: Style.space(10)
-                      color: moveRightMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
-                      anchors.verticalCenter: parent.verticalCenter
-                      visible: sectionName !== "right"
-
-                      Text {
-                        anchors.centerIn: parent
-                        text: "→"
-                        color: root.contentForeground
-                        font.family: root.contentFontFamily
-                        font.pixelSize: Style.font.caption
-                      }
-                      MouseArea {
-                        id: moveRightMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                          var sections = ["left", "center", "right"]
-                          var idx = sections.indexOf(sectionName)
-                          if (idx < 2) root.movePlugin(pluginId, sectionName, sections[idx + 1])
-                        }
-                      }
-                    }
                   }
                 }
               }
@@ -952,57 +1019,6 @@ Panel {
                 horizontalAlignment: Text.AlignHCenter
               }
 
-              // Move to other sections
-              Row {
-                spacing: Style.space(4)
-                visible: root.sectionEntries(sectionName).length > 0
-
-                Text {
-                  text: "Move all to:"
-                  color: Qt.darker(root.contentForeground, 1.5)
-                  font.family: root.contentFontFamily
-                  font.pixelSize: Style.font.caption
-                  anchors.verticalCenter: parent.verticalCenter
-                }
-
-                Repeater {
-                  model: ["left", "center", "right"]
-
-                  Rectangle {
-                    required property string modelData
-                    visible: modelData !== sectionName
-                    width: moveToLabel.implicitWidth + Style.space(12)
-                    height: Style.space(22)
-                    radius: Style.cornerRadius
-                    color: moveToMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
-                    border.width: 1
-                    border.color: Qt.darker(root.contentForeground, 1.4)
-
-                    Text {
-                      id: moveToLabel
-                      anchors.centerIn: parent
-                      text: modelData.charAt(0).toUpperCase() + modelData.slice(1)
-                      color: root.contentForeground
-                      font.family: root.contentFontFamily
-                      font.pixelSize: Style.font.caption
-                    }
-
-                    MouseArea {
-                      id: moveToMouse
-                      anchors.fill: parent
-                      hoverEnabled: true
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: {
-                        // Move all plugins from current section to target
-                        var entries = root.sectionEntries(sectionName)
-                        for (var i = entries.length - 1; i >= 0; i--) {
-                          root.movePlugin(Model.entryId(entries[i]), sectionName, modelData)
-                        }
-                      }
-                    }
-                  }
-                }
-              }
             }
           }
 
@@ -1015,7 +1031,7 @@ Panel {
             spacing: Style.space(6)
 
             Text {
-              text: "ADD PLUGIN"
+              text: "PLUGINS"
               color: Qt.darker(root.contentForeground, 1.4)
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
@@ -1067,14 +1083,17 @@ Panel {
             }
 
             Repeater {
-              model: root.pluginsNotInLayout()
+              model: root.installedPlugins
 
               Rectangle {
-                required property string modelData
+                required property var modelData
+                required property int index
                 width: parent.width
                 height: addRow.implicitHeight + Style.space(10)
                 radius: Style.cornerRadius
                 color: addMouse.containsMouse ? Style.hoverFillFor(root.contentForeground, Color.accent) : "transparent"
+
+                property bool isInLayout: root.isPluginInLayout(modelData.id)
 
                 Row {
                   id: addRow
@@ -1086,7 +1105,7 @@ Panel {
                   spacing: Style.space(6)
 
                   Text {
-                    text: root.pluginIcon(modelData)
+                    text: root.pluginIcon(modelData.id)
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.body
@@ -1095,7 +1114,7 @@ Panel {
 
                   Text {
                     width: parent.width - Style.space(6) - Style.space(80)
-                    text: root.pluginDisplayName(modelData)
+                    text: modelData.name || modelData.id
                     color: root.contentForeground
                     font.family: root.contentFontFamily
                     font.pixelSize: Style.font.body
@@ -1106,14 +1125,16 @@ Panel {
                     width: addBtnLabel.implicitWidth + Style.space(16)
                     height: Style.space(24)
                     radius: Style.cornerRadius
-                    color: Color.accent
+                    color: addRow.isInLayout ? "transparent" : Color.accent
+                    border.width: addRow.isInLayout ? 1 : 0
+                    border.color: Qt.darker(root.contentForeground, 1.4)
                     anchors.verticalCenter: parent.verticalCenter
 
                     Text {
                       id: addBtnLabel
                       anchors.centerIn: parent
-                      text: "+ Add"
-                      color: "white"
+                      text: addRow.isInLayout ? "✓ In bar" : "+ Add"
+                      color: addRow.isInLayout ? Qt.darker(root.contentForeground, 1.4) : "white"
                       font.family: root.contentFontFamily
                       font.pixelSize: Style.font.caption
                       font.bold: true
@@ -1125,21 +1146,12 @@ Panel {
                   id: addMouse
                   anchors.fill: parent
                   hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: root.addPlugin(modelData, root.addTargetSection)
+                  cursorShape: addRow.isInLayout ? Qt.ArrowCursor : Qt.PointingHandCursor
+                  onClicked: {
+                    if (!addRow.isInLayout) root.addPlugin(modelData.id, root.addTargetSection)
+                  }
                 }
               }
-            }
-
-            Text {
-              visible: root.pluginsNotInLayout().length === 0
-              width: parent.width
-              text: "All installed plugins are already in the layout"
-              color: Qt.darker(root.contentForeground, 1.5)
-              font.family: root.contentFontFamily
-              font.pixelSize: Style.font.bodySmall
-              font.italic: true
-              horizontalAlignment: Text.AlignHCenter
             }
           }
 
