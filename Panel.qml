@@ -61,8 +61,35 @@ Panel {
     }
   }
 
+  // Plugin registry from `omarchy plugin list --json`
+  property var installedPlugins: []
+
+  Process {
+    id: pluginListProcess
+    running: false
+    command: ["omarchy", "plugin", "list", "--json"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var plugins = JSON.parse(text)
+          root.installedPlugins = plugins.filter(function(p) {
+            return p.kinds && p.kinds.indexOf("bar-widget") >= 0 && p.enabled
+          })
+        } catch(e) {
+          console.warn("bar-manager: Failed to parse plugin list:", e.message)
+        }
+      }
+    }
+  }
+
+  function refreshPluginList() {
+    pluginListProcess.running = true
+  }
+
   function open() {
     root.controller.show()
+    refreshPluginList()
     loadConfig()
     Qt.callLater(function() {
       if (root.opened) setCenterHoverRevealSuppressed(true)
@@ -200,14 +227,7 @@ Panel {
   }
 
   function installedPluginsList() {
-    // Parse from omarchy plugin list output — for now return known built-in IDs
-    return [
-      "omarchy.menu", "omarchy.workspaces", "omarchy.active-window",
-      "omarchy.clock", "omarchy.indicators", "omarchy.keyboard-layout",
-      "omarchy.weather", "omarchy.system-update",
-      "omarchy.tray", "omarchy.agents", "omarchy.bluetooth",
-      "omarchy.network", "omarchy.audio", "omarchy.monitor", "omarchy.power"
-    ]
+    return root.installedPlugins.map(function(p) { return p.id })
   }
 
   function pluginsNotInLayout() {
@@ -251,24 +271,10 @@ Panel {
   }
 
   function pluginDisplayName(pluginId) {
-    var names = {
-      "omarchy.menu": "Menu",
-      "omarchy.workspaces": "Workspaces",
-      "omarchy.active-window": "Active Window",
-      "omarchy.clock": "Clock",
-      "omarchy.indicators": "Indicators",
-      "omarchy.keyboard-layout": "Keyboard Layout",
-      "omarchy.weather": "Weather",
-      "omarchy.system-update": "System Update",
-      "omarchy.tray": "Tray",
-      "omarchy.agents": "Agents",
-      "omarchy.bluetooth": "Bluetooth",
-      "omarchy.network": "Network",
-      "omarchy.audio": "Audio",
-      "omarchy.monitor": "Monitor",
-      "omarchy.power": "Power"
+    for (var i = 0; i < root.installedPlugins.length; i++) {
+      if (root.installedPlugins[i].id === pluginId) return root.installedPlugins[i].name
     }
-    return names[pluginId] || pluginId
+    return pluginId
   }
 
   function pluginIcon(pluginId) {

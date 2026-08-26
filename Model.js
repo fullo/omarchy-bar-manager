@@ -1,25 +1,5 @@
 // Model.js — shell.json read/write/validate helpers for Bar Manager
 
-function shellConfigPath() {
-    var home = Quickshell.env("HOME")
-    return "file://" + home + "/.config/omarchy/shell.json"
-}
-
-function writeShellConfig(config, callback) {
-    var json = JSON.stringify(config, null, 2) + "\n"
-    // Validate by re-parsing
-    try {
-        JSON.parse(json)
-    } catch(e) {
-        callback(false, "Generated JSON is invalid: " + e.message)
-        return
-    }
-    // Write via FileView would be ideal but we need to use IPC or file write
-    // For now, use XMLHttpRequest PUT (works with file:// on some systems)
-    // Fallback: write via shell.mutateShellConfig if available
-    callback(true, null)
-}
-
 function validateConfig(config) {
     var errors = []
     if (!config || typeof config !== "object") {
@@ -53,22 +33,18 @@ function buildDiff(oldConfig, newConfig) {
         var newEntries = (newConfig.bar && newConfig.bar.layout) ? (newConfig.bar.layout[s] || []) : []
         var oldIds = oldEntries.map(function(e) { return typeof e === "string" ? e : (e.id || "") })
         var newIds = newEntries.map(function(e) { return typeof e === "string" ? e : (e.id || "") })
-        // Added
         for (var j = 0; j < newIds.length; j++) {
             if (oldIds.indexOf(newIds[j]) === -1) changes.push("Add " + newIds[j] + " to " + s)
         }
-        // Removed
         for (var k = 0; k < oldIds.length; k++) {
             if (newIds.indexOf(oldIds[k]) === -1) changes.push("Remove " + oldIds[k] + " from " + s)
         }
-        // Reordered (present in both but different position)
         var commonOld = oldIds.filter(function(id) { return newIds.indexOf(id) >= 0 })
         var commonNew = newIds.filter(function(id) { return oldIds.indexOf(id) >= 0 })
         if (JSON.stringify(commonOld) !== JSON.stringify(commonNew)) {
             changes.push("Reorder plugins in " + s)
         }
     }
-    // Position change
     if (oldConfig.bar && newConfig.bar && oldConfig.bar.position !== newConfig.bar.position) {
         changes.push("Bar position: " + (oldConfig.bar.position || "top") + " → " + (newConfig.bar.position || "top"))
     }
