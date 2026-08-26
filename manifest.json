@@ -6,10 +6,12 @@
   "author": "fullo",
   "description": "Enable, disable, reorder, and configure bar plugins from a panel (no dependencies)",
   "kinds": [
-    "bar-widget"
+    "bar-widget",
+    "panel"
   ],
   "entryPoints": {
-    "barWidget": "BarWidget.qml"
+    "barWidget": "BarWidget.qml",
+    "panel": "Panel.qml"
   },
   "barWidget": {
     "displayName": "Bar Manager",
