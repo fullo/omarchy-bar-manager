@@ -8,7 +8,6 @@ import "Model.js" as Model
 Panel {
   id: root
   moduleName: "io.github.fullo.omarchy-bar-manager"
-  ipcTarget: "io.github.fullo.omarchy-bar-manager"
   manageIpc: false
 
   property var anchorItem: null
@@ -42,6 +41,7 @@ Panel {
     path: root.configDir + "/shell.json"
     watchChanges: true
     printErrors: false
+    onFileChanged: reload()
     onLoaded: {
       try {
         var config = JSON.parse(text())
@@ -90,7 +90,7 @@ Panel {
     id: settingsScanProcess
     running: false
     property string targetPluginId: ""
-    command: ["rg", "--no-filename", "-o", 'setting\\s*\\(\\s*"[^"]+"\\s*,\\s*[^)]+\\)', "."]
+    command: ["true"]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -98,6 +98,10 @@ Panel {
         newDiscovered[settingsScanProcess.targetPluginId] = Model.parseSettingsFromSource(text)
         root.discoveredSettings = newDiscovered
       }
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: if (text.trim() !== "") console.warn("bar-manager: settings scan:", text.trim())
     }
   }
 
@@ -177,40 +181,23 @@ Panel {
   }
 
   function doSave() {
-    if (!currentConfig) { console.warn("bar-manager: doSave: no currentConfig"); return }
-    console.log("bar-manager: doSave called, bar:", !!root.bar, "shell:", !!(root.bar && root.bar.shell), "mutateShellConfig:", typeof (root.bar && root.bar.shell && root.bar.shell.mutateShellConfig))
-    // Write via shell.mutateShellConfig if available, else direct file write
+    if (!currentConfig) return
+    var validation = Model.validateConfig(currentConfig)
+    if (!validation.valid) {
+      errorText = "Validation failed:\n" + validation.errors.join("\n")
+      return
+    }
     if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
       var configCopy = JSON.parse(JSON.stringify(currentConfig))
       root.bar.shell.mutateShellConfig(function(config) {
-        // Copy our changes into the shell's config
         for (var k in configCopy) config[k] = configCopy[k]
       })
       root.originalConfig = JSON.parse(JSON.stringify(currentConfig))
       hasChanges = false
       diff = []
       errorText = ""
-    } else {
-      console.warn("bar-manager: doSave: mutateShellConfig not available, writing file directly")
-      // Direct file write fallback
-      var json = JSON.stringify(currentConfig, null, 2) + "\n"
-      var xhr = new XMLHttpRequest()
-      xhr.open("PUT", "file://" + root.configDir + "/shell.json")
-      xhr.onreadystatechange = function() {
-        if (xhr.readyState === 4) {
-          if (xhr.status === 200 || xhr.status === 0) {
-            console.log("bar-manager: doSave: file write succeeded")
-            root.originalConfig = JSON.parse(JSON.stringify(currentConfig))
-            hasChanges = false
-            diff = []
-            errorText = ""
-          } else {
-            console.warn("bar-manager: doSave: file write failed:", xhr.status)
-            errorText = "Failed to write shell.json: HTTP " + xhr.status
-          }
-        }
-      }
-      xhr.send(json)
+      settingsEditor.originalSettings = JSON.parse(JSON.stringify(currentConfig))
+      shellFileView.reload()
     }
   }
 
@@ -423,14 +410,10 @@ Panel {
       confirmText: "Save"
       cancelText: "Cancel"
       onConfirmed: {
-        console.log("bar-manager: ConfirmDialog confirmed")
         saveConfirmDialog.opened = false
         root.doSave()
       }
-      onCanceled: {
-        console.log("bar-manager: ConfirmDialog canceled")
-        saveConfirmDialog.opened = false
-      }
+      onCanceled: saveConfirmDialog.opened = false
     }
 
     // Settings editor overlay
@@ -612,18 +595,7 @@ Panel {
                 root.editingPluginId = ""
                 root.editingPluginSection = ""
                 root.editingPluginSettings = ({})
-                // Write to disk and reload
-                if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
-                  var configCopy = JSON.parse(JSON.stringify(root.currentConfig))
-                  root.bar.shell.mutateShellConfig(function(config) {
-                    for (var k in configCopy) config[k] = configCopy[k]
-                  })
-                  root.originalConfig = JSON.parse(JSON.stringify(root.currentConfig))
-                  hasChanges = false
-                  diff = []
-                  errorText = ""
-                  shellFileView.reload()
-                }
+                root.doSave()
               }
             }
           }

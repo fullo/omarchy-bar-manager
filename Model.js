@@ -117,3 +117,7 @@ function mergeWithDiscoveredSettings(entry, discoveredSettings) {
     }
     return result
 }
+
+if (typeof module !== "undefined") {
+    module.exports = { validateConfig, buildDiff, pluginsInLayout, entryId, entrySettings, parseSettingsFromSource, mergeWithDiscoveredSettings }
+}

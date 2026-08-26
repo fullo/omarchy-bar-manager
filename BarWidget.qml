@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
@@ -8,9 +7,6 @@ import "Model.js" as Model
 BarWidget {
   id: root
   moduleName: "io.github.fullo.omarchy-bar-manager"
-
-  property string barText: "󰒓"
-  property string barTooltip: "Bar Manager"
 
   function injectPanel() {
     var target = panelLoader.item
@@ -32,7 +28,6 @@ BarWidget {
   readonly property real openPanelIndicatorWidth: button.labelWidth
   readonly property real openPanelIndicatorHeight: Math.max(Style.space(10), Math.round(Style.bar.iconSlot * 0.55))
 
-  visible: true
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
 
@@ -60,10 +55,10 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.barText
+    text: "󰒓"
     labelVisible: true
     hasVisualContent: true
-    tooltipText: root.barTooltip
+    tooltipText: "Bar Manager"
     horizontalMargin: 8.75
     verticalPadding: 8.75
 
