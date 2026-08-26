@@ -400,7 +400,7 @@ Panel {
       visible: root.editingPluginId !== ""
       color: Color.background
 
-      property var pluginSettings: root.editingPluginSettings
+      property var pluginSettings: ({})
       property var originalSettings: ({})
       property var settingsKeys: Object.keys(pluginSettings)
 
@@ -498,10 +498,9 @@ Panel {
                     text: String(settingsEditor.pluginSettings[modelData] || "")
 
                     onTextChanged: {
-                      // Update the settings value
-                      var newSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
+                      var newSettings = JSON.parse(JSON.stringify(settingsEditor.pluginSettings))
                       newSettings[modelData] = text
-                      root.editingPluginSettings = newSettings
+                      settingsEditor.pluginSettings = newSettings
                     }
                   }
                 }
@@ -539,6 +538,7 @@ Panel {
               cursorShape: Qt.PointingHandCursor
               onClicked: {
                 root.editingPluginSettings = JSON.parse(JSON.stringify(settingsEditor.originalSettings))
+                settingsEditor.pluginSettings = JSON.parse(JSON.stringify(settingsEditor.originalSettings))
               }
             }
           }
@@ -566,11 +566,23 @@ Panel {
               cursorShape: Qt.PointingHandCursor
               onClicked: {
                 if (root.editingPluginId && root.editingPluginSection) {
-                  root.applyAllSettings(root.editingPluginId, root.editingPluginSection, root.editingPluginSettings)
+                  root.applyAllSettings(root.editingPluginId, root.editingPluginSection, settingsEditor.pluginSettings)
                 }
                 root.editingPluginId = ""
                 root.editingPluginSection = ""
                 root.editingPluginSettings = ({})
+                // Write to disk and reload
+                if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+                  var configCopy = JSON.parse(JSON.stringify(root.currentConfig))
+                  root.bar.shell.mutateShellConfig(function(config) {
+                    for (var k in configCopy) config[k] = configCopy[k]
+                  })
+                  root.originalConfig = JSON.parse(JSON.stringify(root.currentConfig))
+                  hasChanges = false
+                  diff = []
+                  errorText = ""
+                  shellFileView.reload()
+                }
               }
             }
           }
@@ -975,6 +987,7 @@ Panel {
                           root.editingPluginId = pluginId
                           root.editingPluginSection = sectionName
                           root.editingPluginSettings = root.pluginSettings(pluginId, sectionName)
+                          settingsEditor.pluginSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
                           settingsEditor.originalSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
                         }
                       }
