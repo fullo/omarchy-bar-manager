@@ -80,3 +80,40 @@ function entrySettings(entry) {
     }
     return copy
 }
+
+// Parse setting() calls from QML source to discover available settings.
+// Returns array of { key, defaultValue } objects.
+function parseSettingsFromSource(source) {
+    var settings = []
+    var seen = {}
+    // Match setting("key", defaultValue) patterns
+    var regex = /setting\s*\(\s*"([^"]+)"\s*,\s*([^)]+)\)/g
+    var match
+    while ((match = regex.exec(source)) !== null) {
+        var key = match[1]
+        if (seen[key]) continue
+        seen[key] = true
+        var rawDefault = match[2].trim()
+        var defaultValue = rawDefault
+        // Normalize common defaults
+        if (rawDefault === "true") defaultValue = true
+        else if (rawDefault === "false") defaultValue = false
+        else if (/^-?\d+(\.\d+)?$/.test(rawDefault)) defaultValue = Number(rawDefault)
+        else if (rawDefault === '""' || rawDefault === "''") defaultValue = ""
+        settings.push({ key: key, defaultValue: defaultValue })
+    }
+    return settings
+}
+
+// Merge discovered settings with current entry settings.
+// Discovered settings fill in missing keys with defaults.
+function mergeWithDiscoveredSettings(entry, discoveredSettings) {
+    var result = entrySettings(entry)
+    for (var i = 0; i < discoveredSettings.length; i++) {
+        var s = discoveredSettings[i]
+        if (result[s.key] === undefined || result[s.key] === null || result[s.key] === "") {
+            result[s.key] = s.defaultValue
+        }
+    }
+    return result
+}

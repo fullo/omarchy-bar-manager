@@ -64,6 +64,9 @@ Panel {
   // Plugin registry from `omarchy plugin list --json`
   property var installedPlugins: []
 
+  // Discovered settings per plugin (keyed by pluginId)
+  property var discoveredSettings: ({})
+
   Process {
     id: pluginListProcess
     running: false
@@ -83,8 +86,46 @@ Panel {
     }
   }
 
+  Process {
+    id: settingsScanProcess
+    running: false
+    property string targetPluginId: ""
+    command: ["rg", "--no-filename", "-o", 'setting\\s*\\(\\s*"[^"]+"\\s*,\\s*[^)]+\\)', "."]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var newDiscovered = JSON.parse(JSON.stringify(root.discoveredSettings))
+        newDiscovered[settingsScanProcess.targetPluginId] = Model.parseSettingsFromSource(text)
+        root.discoveredSettings = newDiscovered
+      }
+    }
+  }
+
+  function scanPluginSettings(pluginId) {
+    // Find plugin directory from installed plugins list
+    var isThirdParty = pluginId.indexOf(".") !== -1 && pluginId.indexOf("omarchy.") !== 0
+    var pluginDir = ""
+    if (isThirdParty) {
+      pluginDir = root.configDir + "/plugins/" + pluginId
+    } else {
+      pluginDir = "/usr/share/omarchy/shell/plugins"
+      // For built-in plugins, the dir is named by the last segment
+      var parts = pluginId.split(".")
+      pluginDir += "/" + parts[parts.length - 1]
+    }
+    settingsScanProcess.targetPluginId = pluginId
+    settingsScanProcess.command = ["rg", "--no-filename", "-o", 'setting\\s*\\(\\s*"[^"]+"\\s*,\\s*[^)]+\\)', pluginDir]
+    settingsScanProcess.running = true
+  }
+
   function refreshPluginList() {
     pluginListProcess.running = true
+    // Scan settings for all installed bar-widget plugins
+    Qt.callLater(function() {
+      for (var i = 0; i < root.installedPlugins.length; i++) {
+        scanPluginSettings(root.installedPlugins[i].id)
+      }
+    })
   }
 
   function open() {
@@ -986,9 +1027,11 @@ Panel {
                         onClicked: {
                           root.editingPluginId = pluginId
                           root.editingPluginSection = sectionName
-                          root.editingPluginSettings = root.pluginSettings(pluginId, sectionName)
-                          settingsEditor.pluginSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
-                          settingsEditor.originalSettings = JSON.parse(JSON.stringify(root.editingPluginSettings))
+                          // Merge current settings with discovered settings (adds defaults)
+                          var merged = Model.mergeWithDiscoveredSettings(modelData, root.discoveredSettings[pluginId] || [])
+                          root.editingPluginSettings = merged
+                          settingsEditor.pluginSettings = JSON.parse(JSON.stringify(merged))
+                          settingsEditor.originalSettings = JSON.parse(JSON.stringify(merged))
                         }
                       }
                     }
