@@ -691,6 +691,64 @@ Panel {
                         onClicked: root.removePlugin(pluginId, sectionName)
                       }
                     }
+
+                    // Move left
+                    Rectangle {
+                      width: Style.space(20)
+                      height: Style.space(20)
+                      radius: Style.space(10)
+                      color: moveLeftMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
+                      anchors.verticalCenter: parent.verticalCenter
+                      visible: sectionName !== "left"
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: "←"
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                      MouseArea {
+                        id: moveLeftMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                          var sections = ["left", "center", "right"]
+                          var idx = sections.indexOf(sectionName)
+                          if (idx > 0) root.movePlugin(pluginId, sectionName, sections[idx - 1])
+                        }
+                      }
+                    }
+
+                    // Move right
+                    Rectangle {
+                      width: Style.space(20)
+                      height: Style.space(20)
+                      radius: Style.space(10)
+                      color: moveRightMouse.containsMouse ? Qt.darker(root.contentForeground, 1.4) : "transparent"
+                      anchors.verticalCenter: parent.verticalCenter
+                      visible: sectionName !== "right"
+
+                      Text {
+                        anchors.centerIn: parent
+                        text: "→"
+                        color: root.contentForeground
+                        font.family: root.contentFontFamily
+                        font.pixelSize: Style.font.caption
+                      }
+                      MouseArea {
+                        id: moveRightMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                          var sections = ["left", "center", "right"]
+                          var idx = sections.indexOf(sectionName)
+                          if (idx < 2) root.movePlugin(pluginId, sectionName, sections[idx + 1])
+                        }
+                      }
+                    }
                   }
 
                   MouseArea {
